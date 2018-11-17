@@ -158,7 +158,7 @@ class Canvas(app.Canvas):
         self.program_point["u_eye_height"] = self.program["u_eye_height"] = 10
         self.program["u_alpha"] = 0.9
         self.program["u_bed_depth"] = 1
-        self.program["u_fish_depth"] = 0.3
+        self.program["u_fish_depth"] = 0.3  
         self.program["u_sun_direction"] = normalize([0, 0.9, 0.5])
         self.program["u_sun_direction2"] = normalize([0.5, 0.5, 0.0001])
         self.sun_direction2 = np.array([[1, 0, 0.5]], dtype=np.float32)
