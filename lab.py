@@ -113,7 +113,25 @@ varying vec2 v_fish_texcoord2;
 varying float v_reflectance;
 varying vec3 v_mask;
 
+highp float reflection_refraction(in highp vec3 from_eye, in highp vec3 outer_normal, 
+in highp float alpha, in highp float c1, out highp vec3 reflected, out highp vec3 refracted) {
+    reflected=normalize(from_eye-2.0*outer_normal*c1);
+    highp float k=max(0.0, 1.0-alpha*alpha*(1.0-c1*c1));
+    refracted=normalize(alpha*from_eye-(alpha*c1+sqrt(k))*outer_normal);
+    highp float c2=dot(refracted,outer_normal);    
+
+    highp float reflectance_s=pow((alpha*c1-c2)/(alpha*c1+c2),2.0);
+    highp float reflectance_p=pow((alpha*c2-c1)/(alpha*c2+c1),2.0);
+    return (reflectance_s+reflectance_p)/2.0;
+}
+
 void main() {
+    float reflectance;
+    if(c>0.0) { // looking from air to water
+        reflectance=reflection_refraction(from_eye, -normal, u_alpha, -c, reflected, refracted);
+    } else { // looking from water to air
+        reflectance=reflection_refraction(from_eye, normal, 1.0/u_alpha, c, reflected, refracted);
+    };
     vec3 sky_color=texture2D(u_sky_texture, v_sky_texcoord).rgb;
     vec3 bed_color=texture2D(u_bed_texture, v_bed_texcoord).rgb;
     vec3 fish_color=texture2D(u_fish_texture, v_fish_texcoord).rgb;
