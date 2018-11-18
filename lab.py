@@ -34,15 +34,16 @@ varying vec2 v_fish_texcoord2;
 varying float v_reflectance;
 varying vec3 v_mask;
 
-highp float reflection_refraction(in highp vec3 from_eye, in highp vec3 outer_normal, 
-in highp float alpha, in highp float c1, out highp vec3 reflected, out highp vec3 refracted) {
-    vec3 cr=cross(outer_normal,from_eye);
-    float d=1-alpha*alpha*dot(cr,cr);
-    float c2=sqrt(d); 
+ float reflection_refraction(in  vec3 from_eye, in  vec3 outer_normal, 
+in  float alpha, in  float c1, out  vec3 reflected, out  vec3 refracted) {
+    reflected=normalize(from_eye-2.0*outer_normal*c1);
+    float k=max(0.0, 1.0-alpha*alpha*(1.0-c1*c1));
+    refracted=normalize(alpha*from_eye-(alpha*c1+sqrt(k))*outer_normal);
+    float c2=dot(refracted,outer_normal);   
 
-    highp float reflectance_s=pow((alpha*c1-c2)/(alpha*c1+c2),2.0);
-    highp float reflectance_p=pow((alpha*c2-c1)/(alpha*c2+c1),2.0);
-    return (reflectance_s+reflectance_p)/2.0;
+     float reflectance_s=pow((alpha*c1-c2)/(alpha*c1+c2),2);
+     float reflectance_p=pow((alpha*c2-c1)/(alpha*c2+c1),2);
+    return (reflectance_s+reflectance_p)/2;
 }
 
 void main (void) {
@@ -64,7 +65,7 @@ void main (void) {
     float d=1-u_alpha*u_alpha*dot(cr,cr);
     float c2=sqrt(d);
     vec3 refracted=normalize(u_alpha*cross(cr,normal)-normal*c2);
-    float c1=-dot(normal,from_eye);
+    float c1=dot(normal,from_eye);
 
     float t=(-u_bed_depth-v_position.z)/refracted.z;
     vec3 point_on_bed=v_position+t*refracted;
@@ -80,9 +81,9 @@ void main (void) {
     v_fish_texcoord2=point_not_on_bed2.xy*1.5+fish_coord2;
     
     if(c1>0) {
-        v_reflectance=reflection_refraction(from_eye, normal, u_alpha, c1, v_reflected, refracted);
-    } else {
         v_reflectance=reflection_refraction(from_eye, -normal, u_alpha, -c1, v_reflected, refracted);
+    } else {
+        v_reflectance=reflection_refraction(from_eye, normal, 1.0/u_alpha, c1, v_reflected, refracted);
     }
 
     float diw=length(point_on_bed-v_position);
