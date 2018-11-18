@@ -13,7 +13,11 @@ uniform mat4 u_world_view;
 uniform float u_alpha;
 uniform float u_bed_depth;
 uniform float u_fish_depth;
+uniform float u_fish_depth2;
 uniform vec2 fish_coord;
+uniform vec2 fish_coord2;
+uniform float fish_speed;
+uniform float fish_speed2;
 
 
 attribute vec2 a_position;
@@ -26,6 +30,7 @@ varying vec3 v_reflected;
 varying vec2 v_sky_texcoord;
 varying vec2 v_bed_texcoord;
 varying vec2 v_fish_texcoord;
+varying vec2 v_fish_texcoord2;
 varying float v_reflectance;
 varying vec3 v_mask;
 
@@ -58,6 +63,10 @@ void main (void) {
 
     vec3 point_not_on_bed=v_position+t1*refracted;
     v_fish_texcoord=point_not_on_bed.xy+fish_coord;
+    
+    float t2=(-u_fish_depth2-v_position.z)/refracted.z;
+    vec3 point_not_on_bed2=v_position+t2*refracted;
+    v_fish_texcoord2=point_not_on_bed2.xy+fish_coord2;
 
     float reflectance_s=pow((u_alpha*c1-c2)/(u_alpha*c1+c2),2);
     float reflectance_p=pow((u_alpha*c2-c1)/(u_alpha*c2+c1),2);
@@ -73,6 +82,7 @@ FS_triangle = ("""
 uniform sampler2D u_sky_texture;
 uniform sampler2D u_bed_texture;
 uniform sampler2D u_fish_texture;
+uniform sampler2D u_fish_texture2;
 uniform vec3 u_sun_direction;
 uniform vec3 u_sun_direction2;
 uniform vec3 u_sun_diffused_color;
@@ -96,6 +106,7 @@ varying vec3 v_reflected;
 varying vec2 v_sky_texcoord;
 varying vec2 v_bed_texcoord;
 varying vec2 v_fish_texcoord;
+varying vec2 v_fish_texcoord2;
 varying float v_reflectance;
 varying vec3 v_mask;
 
@@ -103,6 +114,7 @@ void main() {
     vec3 sky_color=texture2D(u_sky_texture, v_sky_texcoord).rgb;
     vec3 bed_color=texture2D(u_bed_texture, v_bed_texcoord).rgb;
     vec3 fish_color=texture2D(u_fish_texture, v_fish_texcoord).rgb;
+    vec3 fish_color2=texture2D(u_fish_texture2, v_fish_texcoord2).rgb;
     vec3 normal=normalize(v_normal);
     float diffused_intensity=u_diffused_mult*max(0, -dot(normal, u_sun_direction));
     float cosphi=max(0,dot(u_sun_direction,normalize(v_reflected)));
@@ -111,7 +123,7 @@ void main() {
     float cosphi2=max(0,dot(u_sun_direction2,normalize(v_reflected)));
     float reflected_intensity2=u_reflected_mult2*pow(cosphi2,100);
     vec3 ambient_water=vec3(0,0.302,0.498);
-    vec3 image_color=u_bed_mult*bed_color*v_mask+u_depth_mult*ambient_water*(1-v_mask)+u_fish_mult*fish_color*(v_mask);
+    vec3 image_color=u_bed_mult*bed_color*v_mask+u_depth_mult*ambient_water*(1-v_mask)+u_fish_mult*fish_color*(v_mask)+u_fish_mult*fish_color2*(v_mask);
     vec3 rgb=u_sky_mult*sky_color*v_reflectance+image_color*(1-v_reflectance)
        +diffused_intensity*u_sun_diffused_color
        +reflected_intensity*u_sun_reflected_color;
@@ -143,6 +155,7 @@ class Canvas(app.Canvas):
         self.sky = io.read_png(sky)
         self.bed = io.read_png(bed)
         self.fish = io.read_png("fish.png")
+        self.fish2 = io.read_png("fish.png")
         # create GL context
         app.Canvas.__init__(self, size=(600, 600), title="Water surface simulator")
         # Compile shaders and set constants
@@ -154,10 +167,12 @@ class Canvas(app.Canvas):
         self.program['u_sky_texture'] = gloo.Texture2D(self.sky, wrapping='repeat', interpolation='linear')
         self.program['u_bed_texture'] = gloo.Texture2D(self.bed, wrapping='repeat', interpolation='linear')
         self.program['u_fish_texture'] = gloo.Texture2D(self.fish)
+        self.program['u_fish_texture2'] = gloo.Texture2D(self.fish2)
         self.program_point["u_eye_height"] = self.program["u_eye_height"] = 10
         self.program["u_alpha"] = 0.7
         self.program["u_bed_depth"] = 0.9
         self.program["u_fish_depth"] = 0.3  
+        self.program["u_fish_depth2"] = 0.5  
         self.program["u_sun_direction"] = normalize([0, 0.9, 0.5])
         self.program["u_sun_direction2"] = normalize([0.5, 0.5, 0.0001])
         self.sun_direction2 = np.array([[1, 0, 0.5]], dtype=np.float32)
@@ -165,7 +180,10 @@ class Canvas(app.Canvas):
         self.program["u_sun_diffused_color2"] = [0, 0, 1]
         self.program["u_sun_reflected_color"] = [0, 1, 0]
         self.program["u_sun_reflected_color2"] = [1, 1, 0]
-        self.program["fish_coord"] = [0, 0]
+        self.program["fish_coord"] = [2, np.random.rand()]
+        self.program["fish_speed"] = ((np.random.rand() + 1) / 100)
+        self.program["fish_coord2"] = [3.5, np.random.rand()]
+        self.program["fish_speed2"] = ((np.random.rand() + 1) / 100)
         self.triangles = gloo.IndexBuffer(self.surface.triangulation())
         # Set up GUI
         self.camera = np.array([0, 0, 1])
@@ -192,6 +210,9 @@ class Canvas(app.Canvas):
         self.shift = False
         self.z = False
         self.x = False
+
+
+        self.timerCounter = 0
 
 # прозрачность
     def apply_flags(self):
@@ -252,6 +273,33 @@ class Canvas(app.Canvas):
         else:
             self.sun_direction2 = self.sun_direction2 + np.array([[0.01, 0, 0]], dtype=np.float32)
         self.update()
+        self.сome_on_fish()
+    
+    def сome_on_fish(self):
+        #self.timerCounter += 1
+        #if self.timerCounter == 3:
+        #    self.timerCounter = 0
+            #self.program["fish_coord"][0] += 0.01
+            #self.program["fish_coord"][1] += 0.01
+            #self.update()
+        self.program["fish_coord"] = (
+            [self.program["fish_coord"][0] - self.program["fish_speed"], 
+            (self.program["fish_coord"][1] + np.sin(self.program["fish_coord"][0]*5)/400)]
+        )
+        self.program["u_fish_depth"] += np.sin(self.program["fish_coord"][0]*5 + 1)/100
+        if self.program["fish_coord"][0] < -1:
+            self.program["fish_coord"] = [2, np.random.rand()]
+            self.program["fish_speed"] = ((np.random.rand() + 1) / 100)
+        self.program["fish_coord2"] = (
+            [self.program["fish_coord2"][0] - self.program["fish_speed2"], 
+            self.program["fish_coord2"][1]] +  + np.sin(self.program["fish_coord"][0]*3)/300
+        )
+        if self.program["fish_coord2"][0] < -1:
+            self.program["fish_coord2"] = [2, np.random.rand()]
+            self.program["fish_speed2"] = ((np.random.rand() + 1) / 100)
+       # self.program["fish_coord"] = [0.2, -0.2]
+
+
 
     def on_resize(self, event):
         self.activate_zoom()
