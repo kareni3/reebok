@@ -62,11 +62,11 @@ void main (void) {
     float t1=(-u_fish_depth-v_position.z)/refracted.z;
 
     vec3 point_not_on_bed=v_position+t1*refracted;
-    v_fish_texcoord=point_not_on_bed.xy+fish_coord;
+    v_fish_texcoord=point_not_on_bed.xy*1.5+fish_coord;
     
     float t2=(-u_fish_depth2-v_position.z)/refracted.z;
     vec3 point_not_on_bed2=v_position+t2*refracted;
-    v_fish_texcoord2=point_not_on_bed2.xy+fish_coord2;
+    v_fish_texcoord2=point_not_on_bed2.xy*1.5+fish_coord2;
 
     float reflectance_s=pow((u_alpha*c1-c2)/(u_alpha*c1+c2),2);
     float reflectance_p=pow((u_alpha*c2-c1)/(u_alpha*c2+c1),2);
@@ -193,9 +193,9 @@ class Canvas(app.Canvas):
         self.program["u_sun_diffused_color2"] = [0, 0, 1]
         self.program["u_sun_reflected_color"] = [0, 1, 0]
         self.program["u_sun_reflected_color2"] = [1, 1, 0]
-        self.program["fish_coord"] = [2, np.random.rand()]
+        self.program["fish_coord"] = [4, np.random.rand()]
         self.program["fish_speed"] = ((np.random.rand() + 1) / 100)
-        self.program["fish_coord2"] = [3.5, np.random.rand()]
+        self.program["fish_coord2"] = [7, np.random.rand()]
         self.program["fish_speed2"] = ((np.random.rand() + 1) / 100)
         self.triangles = gloo.IndexBuffer(self.surface.triangulation())
         # Set up GUI
@@ -290,20 +290,20 @@ class Canvas(app.Canvas):
     
     def сome_on_fish(self):
         self.program["fish_coord"] = (
-            [self.program["fish_coord"][0] - self.program["fish_speed"], 
-            (self.program["fish_coord"][1] + np.sin(self.program["fish_coord"][0]*5)/400)]
+            [self.program["fish_coord"][0] - self.program["fish_speed"]*1.5, 
+            (self.program["fish_coord"][1] + np.sin(self.program["fish_coord"][0]*4)/400)]
         )
-        self.program["u_fish_depth"] += np.sin(self.program["fish_coord"][0]*5 + 1)/100
-        if self.program["fish_coord"][0] < -1:
-            self.program["fish_coord"] = [2, np.random.rand()]
+        self.program["u_fish_depth"] += np.sin(self.program["fish_coord"][0]*4 + 1)/100
+        if self.program["fish_coord"][0] < -3:
+            self.program["fish_coord"] = [4, np.random.rand()]
             self.program["fish_speed"] = ((np.random.rand() + 1) / 100)
             self.program["u_fish_depth"] = 0.6
         self.program["fish_coord2"] = (
-            [self.program["fish_coord2"][0] - self.program["fish_speed2"], 
+            [self.program["fish_coord2"][0] - self.program["fish_speed2"]*1.5, 
             self.program["fish_coord2"][1]] +  + np.sin(self.program["fish_coord"][0]*3)/300
         )
-        if self.program["fish_coord2"][0] < -1:
-            self.program["fish_coord2"] = [2, np.random.rand()]
+        if self.program["fish_coord2"][0] < -3:
+            self.program["fish_coord2"] = [4, np.random.rand()]
             self.program["fish_speed2"] = ((np.random.rand() + 1) / 100)
 
 
