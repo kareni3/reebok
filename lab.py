@@ -68,6 +68,9 @@ void main (void) {
     vec3 point_not_on_bed2=v_position+t2*refracted;
     v_fish_texcoord2=point_not_on_bed2.xy*1.5+fish_coord2;
 
+    v_fish_texcoord.x=v_fish_texcoord.x*cos(v_fish_texcoord.y);
+    v_fish_texcoord2.y=v_fish_texcoord2.y*cos(v_fish_texcoord2.x);
+
     float reflectance_s=pow((u_alpha*c1-c2)/(u_alpha*c1+c2),2);
     float reflectance_p=pow((u_alpha*c2-c1)/(u_alpha*c2+c1),2);
     v_reflectance=(reflectance_s+reflectance_p)/2;
