@@ -449,7 +449,7 @@ class Canvas(app.Canvas):
 
 if __name__ == '__main__':
     # surface=Surface(size=(100,100), nwave=5, max_height=0.3)
-    surface = CircularWaves(size=(100, 100), max_height=0.01)
+    surface = CircularWaves(size=(100, 100), max_height=0.005)
     c = Canvas(surface)
     c.measure_fps()
     app.run()
