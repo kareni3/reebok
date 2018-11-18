@@ -167,8 +167,8 @@ class Canvas(app.Canvas):
         # read textures
         self.sky = io.read_png(sky)
         self.bed = io.read_png(bed)
-        self.fish = io.read_png("fish.png")
-        self.fish2 = io.read_png("fish.png")
+        self.fish = io.read_png("fish2.png")
+        self.fish2 = io.read_png("fish2.png")
         # create GL context
         app.Canvas.__init__(self, size=(600, 600), title="Water surface simulator")
         # Compile shaders and set constants
