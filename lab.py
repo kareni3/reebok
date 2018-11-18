@@ -57,7 +57,6 @@ void main (void) {
     float t1=(-u_fish_depth-v_position.z)/refracted.z;
 
     vec3 point_not_on_bed=v_position+t1*refracted;
-    point_not_on_bed=point_not_on_bed+vec3(0,0,0.2);
     v_fish_texcoord=point_not_on_bed.xy+fish_coord;
 
     float reflectance_s=pow((u_alpha*c1-c2)/(u_alpha*c1+c2),2);
@@ -263,6 +262,8 @@ class Canvas(app.Canvas):
             self.shift = False
         if event.key == 'z':
             self.z = False
+        elif event.key == 'я':
+            self.z = False
         if event.key == 'x':
             self.x = False
 
@@ -272,6 +273,8 @@ class Canvas(app.Canvas):
         elif event.key == 'Shift':
             self.shift = True
         elif event.key == 'z':
+            self.z = True
+        elif event.key == 'я':
             self.z = True
         elif event.key == 'x':
             self.x = True
@@ -345,6 +348,9 @@ class Canvas(app.Canvas):
             self.program["u_fish_depth"] -= event.delta[1]/10
         elif self.x:
             self.program["u_fish_depth"] -= event.delta[1]/10
+        else:
+            if ((self.program["u_eye_height"] < 15 or event.delta[1] > 0) and (self.program["u_eye_height"] >= 0 or event.delta[1] < 0)):
+                self.program["u_eye_height"] -= (event.delta[1]/5*self.program["u_eye_height"])
 
 
 
