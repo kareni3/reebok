@@ -64,7 +64,7 @@ void main (void) {
     float reflectance_p=pow((u_alpha*c2-c1)/(u_alpha*c2+c1),2);
     v_reflectance=(reflectance_s+reflectance_p)/2;
     float diw=length(point_on_bed-v_position);
-    vec3 filter=vec3(1,0.5,0.2);
+    vec3 filter=vec3(1,0.8,0.5);
     v_mask=vec3(exp(-diw*filter.x),exp(-diw*filter.y),exp(-diw*filter.z));
 }
 """)
@@ -111,11 +111,11 @@ void main() {
     float diffused_intensity2=u_diffused_mult2*max(0, -dot(normal, u_sun_direction2));
     float cosphi2=max(0,dot(u_sun_direction2,normalize(v_reflected)));
     float reflected_intensity2=u_reflected_mult2*pow(cosphi2,100);
-    vec3 ambient_water=vec3(0,0.3,0.5);
+    vec3 ambient_water=vec3(0,0.302,0.498);
     vec3 image_color=u_bed_mult*bed_color*v_mask+u_depth_mult*ambient_water*(1-v_mask)+u_fish_mult*fish_color*(v_mask);
     vec3 rgb=u_sky_mult*sky_color*v_reflectance+image_color*(1-v_reflectance)
-        +(diffused_intensity+diffused_intensity2)*(u_sun_diffused_color+u_sun_diffused_color2)/2
-        +reflected_intensity*u_sun_reflected_color+reflected_intensity2*u_sun_reflected_color2;
+       +diffused_intensity*u_sun_diffused_color
+       +reflected_intensity*u_sun_reflected_color;
     gl_FragColor.rgb = clamp(rgb,0.0,1.0);
     gl_FragColor.a = 1;
 }
@@ -156,13 +156,13 @@ class Canvas(app.Canvas):
         self.program['u_bed_texture'] = gloo.Texture2D(self.bed, wrapping='repeat', interpolation='linear')
         self.program['u_fish_texture'] = gloo.Texture2D(self.fish)
         self.program_point["u_eye_height"] = self.program["u_eye_height"] = 10
-        self.program["u_alpha"] = 0.9
-        self.program["u_bed_depth"] = 1
+        self.program["u_alpha"] = 0.7
+        self.program["u_bed_depth"] = 0.9
         self.program["u_fish_depth"] = 0.3  
         self.program["u_sun_direction"] = normalize([0, 0.9, 0.5])
         self.program["u_sun_direction2"] = normalize([0.5, 0.5, 0.0001])
         self.sun_direction2 = np.array([[1, 0, 0.5]], dtype=np.float32)
-        self.program["u_sun_diffused_color"] = [1, 0, 0]
+        self.program["u_sun_diffused_color"] = [0, 0, 0]
         self.program["u_sun_diffused_color2"] = [0, 0, 1]
         self.program["u_sun_reflected_color"] = [0, 1, 0]
         self.program["u_sun_reflected_color2"] = [1, 1, 0]
@@ -181,14 +181,18 @@ class Canvas(app.Canvas):
         self.bed_flag = True
         self.fish_flag = True
         self.depth_flag = True
-        self.sky_flag = False
-        self.sun_flag = False
+        self.sky_flag = True
         self.movement_state = False
         self.apply_flags()
         # Run everything
         self._timer = app.Timer('auto', connect=self.on_timer, start=True)
         self.activate_zoom()
         self.show()
+
+        
+        self.shift = False
+        self.z = False
+        self.x = False
 
 # прозрачность
     def apply_flags(self):
@@ -225,7 +229,7 @@ class Canvas(app.Canvas):
         gloo.set_viewport(0, 0, *self.physical_size)
 
     def on_draw(self, event):
-        gloo.set_state(clear_color=(0, 0, 0, 1), blend=False)
+        gloo.set_state(clear_color=(1, 1, 1, 1), blend=False)
         gloo.clear()
         h, grad = self.surface.height_and_normal()
         self.program["a_height"] = h
@@ -253,9 +257,24 @@ class Canvas(app.Canvas):
     def on_resize(self, event):
         self.activate_zoom()
 
+    
+    def on_key_release(self, event):
+        if event.key == 'Shift':
+            self.shift = False
+        if event.key == 'z':
+            self.z = False
+        if event.key == 'x':
+            self.x = False
+
     def on_key_press(self, event):
         if event.key == 'Escape':
             self.close()
+        elif event.key == 'Shift':
+            self.shift = True
+        elif event.key == 'z':
+            self.z = True
+        elif event.key == 'x':
+            self.x = True
         elif event.key == ' ':
             self.are_points_visible = not self.are_points_visible
             print("Show lattice vertices:", self.are_points_visible)
@@ -318,10 +337,20 @@ class Canvas(app.Canvas):
     def on_mouse_release(self, event):
         self.drag_start = None
 
+    
+    def on_mouse_wheel(self, event):
+        if self.shift:
+            self.program["u_bed_depth"] -= event.delta[1]/10
+        elif self.z:
+            self.program["u_fish_depth"] -= event.delta[1]/10
+        elif self.x:
+            self.program["u_fish_depth"] -= event.delta[1]/10
+
+
 
 if __name__ == '__main__':
     # surface=Surface(size=(100,100), nwave=5, max_height=0.3)
-    surface = CircularWaves(size=(100, 100), max_height=0.03)
+    surface = CircularWaves(size=(100, 100), max_height=0.01)
     c = Canvas(surface)
     c.measure_fps()
     app.run()

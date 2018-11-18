@@ -3,7 +3,7 @@ import numpy as np
 class PlaneWaves(object):
     def __init__(self, size=(100,100), nwave=5, max_height=0.2):
         self._size=size
-        self._wave_vector=5*(2*np.random.rand(nwave,2)-1)
+        self._wave_vector=12*(2*np.random.rand(nwave,2)-1)
         self._angular_frequency=2*np.random.rand(nwave)
         self._phase=2*np.pi*np.random.rand(nwave)
         self._amplitude=max_height*(1+np.random.rand(nwave))/2/nwave
@@ -45,10 +45,10 @@ class PlaneWaves(object):
         return np.concatenate((abc,acd),axis=0).astype(np.uint32)
 
 class CircularWaves(PlaneWaves):
-    def __init__(self, size=(100,100), max_height=0.1, wave_length=0.3, center=(0.,0.), speed=3):
+    def __init__(self, size=(100,100), max_height=0.1, wave_length=0.3, center=(0.,0.), speed=7):
         self._size=size
         self._amplitude=max_height
-        self._omega=2*np.pi/wave_length
+        self._omega=2.5*np.pi/wave_length
         self._center=np.asarray(center, dtype=np.float32)
         self._speed=speed
         self.t=0
