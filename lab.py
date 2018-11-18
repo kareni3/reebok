@@ -34,6 +34,17 @@ varying vec2 v_fish_texcoord2;
 varying float v_reflectance;
 varying vec3 v_mask;
 
+highp float reflection_refraction(in highp vec3 from_eye, in highp vec3 outer_normal, 
+in highp float alpha, in highp float c1, out highp vec3 reflected, out highp vec3 refracted) {
+    vec3 cr=cross(outer_normal,from_eye);
+    float d=1-alpha*alpha*dot(cr,cr);
+    float c2=sqrt(d); 
+
+    highp float reflectance_s=pow((alpha*c1-c2)/(alpha*c1+c2),2.0);
+    highp float reflectance_p=pow((alpha*c2-c1)/(alpha*c2+c1),2.0);
+    return (reflectance_s+reflectance_p)/2.0;
+}
+
 void main (void) {
     v_position=vec3(a_position.xy,a_height);
     v_normal=normalize(vec3(a_normal, -1));
@@ -67,10 +78,13 @@ void main (void) {
     float t2=(-u_fish_depth2-v_position.z)/refracted.z;
     vec3 point_not_on_bed2=v_position+t2*refracted;
     v_fish_texcoord2=point_not_on_bed2.xy*1.5+fish_coord2;
+    
+    if(c1>0) {
+        v_reflectance=reflection_refraction(from_eye, normal, u_alpha, c1, v_reflected, refracted);
+    } else {
+        v_reflectance=reflection_refraction(from_eye, -normal, u_alpha, -c1, v_reflected, refracted);
+    }
 
-    float reflectance_s=pow((u_alpha*c1-c2)/(u_alpha*c1+c2),2);
-    float reflectance_p=pow((u_alpha*c2-c1)/(u_alpha*c2+c1),2);
-    v_reflectance=(reflectance_s+reflectance_p)/2;
     float diw=length(point_on_bed-v_position);
     vec3 filter=vec3(1,0.8,0.5);
     v_mask=vec3(exp(-diw*filter.x),exp(-diw*filter.y),exp(-diw*filter.z));
@@ -85,6 +99,8 @@ uniform sampler2D u_fish_texture;
 uniform sampler2D u_fish_texture2;
 uniform vec3 u_sun_direction;
 uniform vec3 u_sun_direction2;
+uniform mat4 u_world_view;
+uniform float u_eye_height;
 uniform vec3 u_sun_diffused_color;
 uniform vec3 u_sun_reflected_color;
 uniform vec3 u_sun_diffused_color2;
@@ -113,9 +129,11 @@ varying vec2 v_fish_texcoord2;
 varying float v_reflectance;
 varying vec3 v_mask;
 
+
 void main() {
     vec3 sky_color=texture2D(u_sky_texture, v_sky_texcoord).rgb;
     vec3 bed_color=texture2D(u_bed_texture, v_bed_texcoord).rgb;
+    vec3 background;
     vec3 fish_color=texture2D(u_fish_texture, v_fish_texcoord).rgb;
     vec3 fish_color2=texture2D(u_fish_texture2, v_fish_texcoord2).rgb;
     vec3 normal=normalize(v_normal);
@@ -126,17 +144,36 @@ void main() {
     float cosphi2=max(0,dot(u_sun_direction2,normalize(v_reflected)));
     float reflected_intensity2=u_reflected_mult2*pow(cosphi2,100);
     vec3 ambient_water=vec3(0,0.302,0.498);
+    
+    
+    vec4 eye_view=vec4(0,0,u_eye_height,1);
+    vec4 eye=transpose(u_world_view)*eye_view;
+    vec3 from_eye=normalize(v_position-eye.xyz);
+    float c1=dot(normal,from_eye);
+
+    bool inWater = false;
+
+
+    if(c1>0) {
+        background = bed_color;
+    } else {
+        background = sky_color;
+        inWater = true;
+    }
+
     vec3 image_color;
-    if((fish_color[2]>0 || fish_color[1]>0 || fish_color[0]>0) && (u_fish_depth < u_bed_depth && u_fish_depth > 0) 
+    if(!inWater && (fish_color[2]>0 || fish_color[1]>0 || fish_color[0]>0) && (u_fish_depth < u_bed_depth && u_fish_depth > 0) 
         && (u_fish_depth < u_fish_depth2 || !(fish_color2[2]>0 || fish_color2[1]>0 || fish_color2[0]>0))) {
         image_color=u_depth_mult*ambient_water*(1-v_mask)+u_fish_mult*fish_color*(v_mask);
     }
-    else if ((fish_color2[2]>0 || fish_color2[1]>0 || fish_color2[0]>0) && (u_fish_depth2 < u_bed_depth && u_fish_depth2 > 0)){
+    else if (!inWater && (fish_color2[2]>0 || fish_color2[1]>0 || fish_color2[0]>0) && (u_fish_depth2 < u_bed_depth && u_fish_depth2 > 0)){
         image_color=u_depth_mult*ambient_water*(1-v_mask)+u_fish_mult*fish_color2*(v_mask);
     }
     else {
-        image_color=u_bed_mult*bed_color*v_mask+u_depth_mult*ambient_water*(1-v_mask);
+        image_color=u_bed_mult*background*v_mask+u_depth_mult*ambient_water*(1-v_mask);
     }
+
+
     vec3 rgb=u_sky_mult*sky_color*v_reflectance+image_color*(1-v_reflectance)
        +diffused_intensity*u_sun_diffused_color
        +reflected_intensity*u_sun_reflected_color;
