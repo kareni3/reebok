@@ -99,6 +99,9 @@ uniform float u_bed_mult;
 uniform float u_fish_mult;
 uniform float u_depth_mult;
 uniform float u_sky_mult;
+uniform float u_fish_depth;
+uniform float u_fish_depth2;
+uniform float u_bed_depth;
 
 varying vec3 v_normal;
 varying vec3 v_position;
@@ -123,7 +126,17 @@ void main() {
     float cosphi2=max(0,dot(u_sun_direction2,normalize(v_reflected)));
     float reflected_intensity2=u_reflected_mult2*pow(cosphi2,100);
     vec3 ambient_water=vec3(0,0.302,0.498);
-    vec3 image_color=u_bed_mult*bed_color*v_mask+u_depth_mult*ambient_water*(1-v_mask)+u_fish_mult*fish_color*(v_mask)+u_fish_mult*fish_color2*(v_mask);
+    vec3 image_color;
+    if((fish_color[2]>0 || fish_color[1]>0 || fish_color[0]>0) && (u_fish_depth < u_bed_depth && u_fish_depth > 0) 
+        && (u_fish_depth < u_fish_depth2 || !(fish_color2[2]>0 || fish_color2[1]>0 || fish_color2[0]>0))) {
+        image_color=u_depth_mult*ambient_water*(1-v_mask)+u_fish_mult*fish_color*(v_mask);
+    }
+    else if ((fish_color2[2]>0 || fish_color2[1]>0 || fish_color2[0]>0) && (u_fish_depth2 < u_bed_depth && u_fish_depth2 > 0)){
+        image_color=u_depth_mult*ambient_water*(1-v_mask)+u_fish_mult*fish_color2*(v_mask);
+    }
+    else {
+        image_color=u_bed_mult*bed_color*v_mask+u_depth_mult*ambient_water*(1-v_mask);
+    }
     vec3 rgb=u_sky_mult*sky_color*v_reflectance+image_color*(1-v_reflectance)
        +diffused_intensity*u_sun_diffused_color
        +reflected_intensity*u_sun_reflected_color;
@@ -170,9 +183,9 @@ class Canvas(app.Canvas):
         self.program['u_fish_texture2'] = gloo.Texture2D(self.fish2)
         self.program_point["u_eye_height"] = self.program["u_eye_height"] = 10
         self.program["u_alpha"] = 0.7
-        self.program["u_bed_depth"] = 0.9
-        self.program["u_fish_depth"] = 0.3  
-        self.program["u_fish_depth2"] = 0.5  
+        self.program["u_bed_depth"] = 1
+        self.program["u_fish_depth"] = 0.6  
+        self.program["u_fish_depth2"] = 0.4  
         self.program["u_sun_direction"] = normalize([0, 0.9, 0.5])
         self.program["u_sun_direction2"] = normalize([0.5, 0.5, 0.0001])
         self.sun_direction2 = np.array([[1, 0, 0.5]], dtype=np.float32)
@@ -276,12 +289,6 @@ class Canvas(app.Canvas):
         self.сome_on_fish()
     
     def сome_on_fish(self):
-        #self.timerCounter += 1
-        #if self.timerCounter == 3:
-        #    self.timerCounter = 0
-            #self.program["fish_coord"][0] += 0.01
-            #self.program["fish_coord"][1] += 0.01
-            #self.update()
         self.program["fish_coord"] = (
             [self.program["fish_coord"][0] - self.program["fish_speed"], 
             (self.program["fish_coord"][1] + np.sin(self.program["fish_coord"][0]*5)/400)]
@@ -290,6 +297,7 @@ class Canvas(app.Canvas):
         if self.program["fish_coord"][0] < -1:
             self.program["fish_coord"] = [2, np.random.rand()]
             self.program["fish_speed"] = ((np.random.rand() + 1) / 100)
+            self.program["u_fish_depth"] = 0.6
         self.program["fish_coord2"] = (
             [self.program["fish_coord2"][0] - self.program["fish_speed2"], 
             self.program["fish_coord2"][1]] +  + np.sin(self.program["fish_coord"][0]*3)/300
@@ -297,7 +305,6 @@ class Canvas(app.Canvas):
         if self.program["fish_coord2"][0] < -1:
             self.program["fish_coord2"] = [2, np.random.rand()]
             self.program["fish_speed2"] = ((np.random.rand() + 1) / 100)
-       # self.program["fish_coord"] = [0.2, -0.2]
 
 
 
@@ -395,7 +402,7 @@ class Canvas(app.Canvas):
         elif self.z:
             self.program["u_fish_depth"] -= event.delta[1]/10
         elif self.x:
-            self.program["u_fish_depth"] -= event.delta[1]/10
+            self.program["u_fish_depth2"] -= event.delta[1]/10
         else:
             if ((self.program["u_eye_height"] < 15 or event.delta[1] > 0) and (self.program["u_eye_height"] >= 0 or event.delta[1] < 0)):
                 self.program["u_eye_height"] -= (event.delta[1]/5*self.program["u_eye_height"])
