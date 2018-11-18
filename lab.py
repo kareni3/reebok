@@ -68,9 +68,6 @@ void main (void) {
     vec3 point_not_on_bed2=v_position+t2*refracted;
     v_fish_texcoord2=point_not_on_bed2.xy*1.5+fish_coord2;
 
-    v_fish_texcoord.x=v_fish_texcoord.x*cos(v_fish_texcoord.y);
-    v_fish_texcoord2.y=v_fish_texcoord2.y*cos(v_fish_texcoord2.x);
-
     float reflectance_s=pow((u_alpha*c1-c2)/(u_alpha*c1+c2),2);
     float reflectance_p=pow((u_alpha*c2-c1)/(u_alpha*c2+c1),2);
     v_reflectance=(reflectance_s+reflectance_p)/2;
@@ -185,16 +182,16 @@ class Canvas(app.Canvas):
         self.program['u_fish_texture'] = gloo.Texture2D(self.fish)
         self.program['u_fish_texture2'] = gloo.Texture2D(self.fish2)
         self.program_point["u_eye_height"] = self.program["u_eye_height"] = 10
-        self.program["u_alpha"] = 0.7
+        self.program["u_alpha"] = 0.9
         self.program["u_bed_depth"] = 1
         self.program["u_fish_depth"] = 0.6  
         self.program["u_fish_depth2"] = 0.4  
         self.program["u_sun_direction"] = normalize([0, 0.9, 0.5])
         self.program["u_sun_direction2"] = normalize([0.5, 0.5, 0.0001])
         self.sun_direction2 = np.array([[1, 0, 0.5]], dtype=np.float32)
-        self.program["u_sun_diffused_color"] = [0, 0, 0]
+        self.program["u_sun_diffused_color"] = [1,0.8,1]
         self.program["u_sun_diffused_color2"] = [0, 0, 1]
-        self.program["u_sun_reflected_color"] = [0, 1, 0]
+        self.program["u_sun_reflected_color"] = [1,0.8,0.6]
         self.program["u_sun_reflected_color2"] = [1, 1, 0]
         self.program["fish_coord"] = [4, np.random.rand()]
         self.program["fish_speed"] = ((np.random.rand() + 1) / 100)
@@ -208,8 +205,8 @@ class Canvas(app.Canvas):
         self.are_points_visible = False
         self.drag_start = None
         self.diffused_flag = True
-        self.diffused_flag2 = True
-        self.reflected_flag1 = False
+        self.diffused_flag2 = False
+        self.reflected_flag1 = True
         self.reflected_flag2 = False
         self.bed_flag = True
         self.fish_flag = True
